@@ -1,0 +1,68 @@
+apply plugin: "java"
+apply plugin: "idea"
+apply plugin: "eclipse"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+sourceSets {
+    generated {
+        java {
+            srcDir 'src/main/generated'
+        }
+    }
+}
+
+configurations {
+    querydslapt
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.springframework.boot:spring-boot-starter-data-mongodb:1.2.1.RELEASE"
+    compile "org.springframework.boot:spring-boot-starter-data-jpa:1.2.1.RELEASE"
+
+    compile "com.mysema.querydsl:querydsl-mongodb:3.6.6"
+    compile "com.mysema.querydsl:querydsl-jpa:3.6.6"
+    querydslapt "com.mysema.querydsl:querydsl-apt:3.6.6"
+
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = "2.3"
+}
+
+task generateQueryDSL(type: JavaCompile, group: 'build', description: 'Generates the QueryDSL query types') {
+    source = sourceSets.main.java
+    classpath = configurations.compile + configurations.querydslapt
+    options.compilerArgs = [
+            "-proc:only",
+            "-processor", "org.springframework.data.mongodb.repository.support.MongoAnnotationProcessor,com.mysema.query.apt.jpa.JPAAnnotationProcessor"
+    ]
+    destinationDir = sourceSets.generated.java.srcDirs.iterator().next()
+}
+
+compileJava {
+    dependsOn generateQueryDSL
+    source generateQueryDSL.destinationDir
+}
+
+compileGeneratedJava {
+    dependsOn generateQueryDSL
+    options.warnings = false
+    classpath += sourceSets.main.runtimeClasspath
+}
+
+clean {
+    delete sourceSets.generated.java.srcDirs
+}
+
+idea {
+    module {
+        sourceDirs += file('src/main/generated')
+    }
+}
